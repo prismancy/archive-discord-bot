@@ -4,7 +4,7 @@ import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { env } from "node:process";
 
-console.log(`⏳ starting...`);
+console.log(`⏳ Starting...`);
 
 const client = new Client({
   intents: [
