@@ -70,7 +70,6 @@ export const channels = sqliteTable(
   },
   table => ({
     guildIdIdx: namedIndex(table.guildId),
-    deletedIdx: namedIndex(table.deleted),
   }),
 );
 export const channelsRelations = relations(channels, ({ one, many }) => ({
@@ -139,10 +138,6 @@ export const attachments = sqliteTable(
     messageIdIdx: namedIndex(table.messageId),
     channelIdIdx: namedIndex(table.channelId),
     guildIdIdx: namedIndex(table.guildId),
-    extIdx: namedIndex(table.ext),
-    botIdx: namedIndex(table.bot),
-    nsfwIdx: namedIndex(table.nsfw),
-    multiIdx: namedIndex(table.ext, table.bot, table.nsfw),
   }),
 );
 export const attachmentsRelations = relations(attachments, ({ one }) => ({
