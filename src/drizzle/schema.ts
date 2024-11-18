@@ -4,7 +4,6 @@ import {
   index,
   integer,
   sqliteTable,
-  text,
   type SQLiteColumn,
 } from "drizzle-orm/sqlite-core";
 
@@ -23,12 +22,12 @@ const timestamp = (name: string) => integer(name, { mode: "timestamp" });
 
 export const guilds = sqliteTable(
   "guilds",
-  {
-    id: text("id").primaryKey(),
+  t => ({
+    id: t.text().primaryKey(),
     deleted: boolean("deleted").notNull().default(false),
-  },
-  table => ({
-    deletedIdx: namedIndex(table.deleted),
+  }),
+  t => ({
+    deletedIdx: namedIndex(t.deleted),
   }),
 );
 export const guildsRelations = relations(guilds, ({ many }) => ({
@@ -39,16 +38,17 @@ export const guildsRelations = relations(guilds, ({ many }) => ({
 
 export const members = sqliteTable(
   "members",
-  {
-    id: text("id").primaryKey(),
-    guildId: text("guild_id")
+  t => ({
+    id: t.text().primaryKey(),
+    guildId: t
+      .text()
       .notNull()
       .references(() => guilds.id, { onDelete: "cascade" }),
     bot: boolean("bot").notNull().default(false),
     removed: boolean("removed").notNull().default(false),
-  },
-  table => ({
-    guildIdIdx: namedIndex(table.guildId),
+  }),
+  t => ({
+    guildIdIdx: namedIndex(t.guildId),
   }),
 );
 export const membersRelations = relations(members, ({ one }) => ({
@@ -60,16 +60,18 @@ export const membersRelations = relations(members, ({ one }) => ({
 
 export const channels = sqliteTable(
   "channels",
-  {
-    id: text("id").primaryKey(),
-    guildId: text("guild_id")
+  t => ({
+    id: t.text().primaryKey(),
+    guildId: t
+      .text()
       .notNull()
       .references(() => guilds.id, { onDelete: "set null" }),
     nsfw: boolean("nsfw").notNull().default(false),
     deleted: boolean("deleted").notNull().default(false),
-  },
-  table => ({
-    guildIdIdx: namedIndex(table.guildId),
+  }),
+  t => ({
+    guildIdIdx: namedIndex(t.guildId),
+    deletedIdx: namedIndex(t.deleted),
   }),
 );
 export const channelsRelations = relations(channels, ({ one, many }) => ({
@@ -85,20 +87,20 @@ export const channelsRelations = relations(channels, ({ one, many }) => ({
  */
 export const messages = sqliteTable(
   "messages",
-  {
-    id: text("id").primaryKey(),
+  t => ({
+    id: t.text().primaryKey(),
     createdAt: timestamp("timestamp"),
     updatedAt: timestamp("edited_timestamp"),
-    authorId: text("author_id").notNull(),
-    channelId: text("channel_id").notNull(),
-    guildId: text("guild_id"),
-    content: text("content").notNull(),
+    authorId: t.text().notNull(),
+    channelId: t.text().notNull(),
+    guildId: t.text(),
+    content: t.text().notNull(),
     deleted: boolean("deleted").notNull().default(false),
-  },
-  table => ({
-    authorIdIdx: namedIndex(table.authorId),
-    channelIdIdx: namedIndex(table.channelId),
-    guildIdIdx: namedIndex(table.guildId),
+  }),
+  t => ({
+    authorIdIdx: namedIndex(t.authorId),
+    channelIdIdx: namedIndex(t.channelId),
+    guildIdIdx: namedIndex(t.guildId),
   }),
 );
 export const messagesRelations = relations(messages, ({ one, many }) => ({
@@ -118,27 +120,27 @@ export const messagesRelations = relations(messages, ({ one, many }) => ({
  */
 export const attachments = sqliteTable(
   "attachments",
-  {
-    id: text("id").primaryKey(),
-    messageId: text("message_id").references(() => messages.id, {
+  t => ({
+    id: t.text().primaryKey(),
+    messageId: t.text().references(() => messages.id, {
       onDelete: "set null",
     }),
-    channelId: text("channel_id").references(() => channels.id, {
+    channelId: t.text().references(() => channels.id, {
       onDelete: "set null",
     }),
-    guildId: text("guild_id").references(() => guilds.id, {
+    guildId: t.text().references(() => guilds.id, {
       onDelete: "set null",
     }),
-    filename: text("filename").notNull(),
-    ext: text("extension"),
-    contentType: text("content_type"),
+    filename: t.text().notNull(),
+    ext: t.text(),
+    contentType: t.text(),
     bot: boolean("bot").notNull().default(false),
     nsfw: boolean("nsfw").notNull().default(false),
-  },
-  table => ({
-    messageIdIdx: namedIndex(table.messageId),
-    channelIdIdx: namedIndex(table.channelId),
-    guildIdIdx: namedIndex(table.guildId),
+  }),
+  t => ({
+    messageIdIdx: namedIndex(t.messageId),
+    channelIdIdx: namedIndex(t.channelId),
+    guildIdIdx: namedIndex(t.guildId),
   }),
 );
 export const attachmentsRelations = relations(attachments, ({ one }) => ({
