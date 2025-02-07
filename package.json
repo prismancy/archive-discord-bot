@@ -2,7 +2,7 @@
   "name": "archive-discord-bot",
   "module": "src/main.ts",
   "type": "module",
-  "prettier": "@iz7n/prettier-config",
+  "prettier": "@in5net/prettier-config",
   "scripts": {
     "start": "bun run ./src/main.ts",
     "db:push": "drizzle-kit push"
@@ -14,8 +14,8 @@
     "fast-glob": "3.3.2"
   },
   "devDependencies": {
-    "@iz7n/eslint-config": "^0.14.1",
-    "@iz7n/prettier-config": "^1.4.1",
+    "@in5net/eslint-config": "^0.14.2",
+    "@in5net/prettier-config": "^1.4.2",
     "@types/bun": "1.1.14",
     "drizzle-kit": "^0.30.1",
     "eslint": "9.17.0",
