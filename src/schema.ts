@@ -26,9 +26,7 @@ export const guilds = sqliteTable(
     id: t.text().primaryKey(),
     deleted: boolean("deleted").notNull().default(false),
   }),
-  t => ({
-    deletedIdx: namedIndex(t.deleted),
-  }),
+  t => [namedIndex(t.deleted)],
 );
 export const guildsRelations = relations(guilds, ({ many }) => ({
   members: many(members),
@@ -47,9 +45,7 @@ export const members = sqliteTable(
     bot: boolean("bot").notNull().default(false),
     removed: boolean("removed").notNull().default(false),
   }),
-  t => ({
-    guildIdIdx: namedIndex(t.guildId),
-  }),
+  t => [namedIndex(t.guildId)],
 );
 export const membersRelations = relations(members, ({ one }) => ({
   guild: one(guilds, {
@@ -69,10 +65,7 @@ export const channels = sqliteTable(
     nsfw: boolean("nsfw").notNull().default(false),
     deleted: boolean("deleted").notNull().default(false),
   }),
-  t => ({
-    guildIdIdx: namedIndex(t.guildId),
-    deletedIdx: namedIndex(t.deleted),
-  }),
+  t => [namedIndex(t.guildId), namedIndex(t.deleted)],
 );
 export const channelsRelations = relations(channels, ({ one, many }) => ({
   guild: one(guilds, {
@@ -97,11 +90,7 @@ export const messages = sqliteTable(
     content: t.text().notNull(),
     deleted: boolean("deleted").notNull().default(false),
   }),
-  t => ({
-    authorIdIdx: namedIndex(t.authorId),
-    channelIdIdx: namedIndex(t.channelId),
-    guildIdIdx: namedIndex(t.guildId),
-  }),
+  t => [namedIndex(t.authorId), namedIndex(t.channelId), namedIndex(t.guildId)],
 );
 export const messagesRelations = relations(messages, ({ one, many }) => ({
   channel: one(channels, {
@@ -137,11 +126,11 @@ export const attachments = sqliteTable(
     bot: boolean("bot").notNull().default(false),
     nsfw: boolean("nsfw").notNull().default(false),
   }),
-  t => ({
-    messageIdIdx: namedIndex(t.messageId),
-    channelIdIdx: namedIndex(t.channelId),
-    guildIdIdx: namedIndex(t.guildId),
-  }),
+  t => [
+    namedIndex(t.messageId),
+    namedIndex(t.channelId),
+    namedIndex(t.guildId),
+  ],
 );
 export const attachmentsRelations = relations(attachments, ({ one }) => ({
   channel: one(channels, {

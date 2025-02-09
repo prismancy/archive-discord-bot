@@ -1,4 +1,4 @@
-import * as schema from "./drizzle/schema";
+import * as schema from "./schema";
 import { Database } from "bun:sqlite";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 
