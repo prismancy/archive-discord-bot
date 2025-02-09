@@ -14,7 +14,6 @@ const client = new Client({
     "MessageContent",
   ],
 });
-export default client;
 
 retryEvent("guildCreate", async guild => {
   await db.insert(guilds).values({
@@ -25,11 +24,11 @@ retryEvent("guildDelete", async guild => {
   await db.update(guilds).set({ deleted: true }).where(eq(guilds.id, guild.id));
 });
 retryEvent("guildMemberAdd", async member => {
-  const exists = await db.query.members.findFirst({
+  const existingMember = await db.query.members.findFirst({
     columns: { id: true },
     where: eq(members.id, member.id),
   });
-  if (exists) {
+  if (existingMember) {
     await db
       .update(members)
       .set({
@@ -43,15 +42,6 @@ retryEvent("guildMemberAdd", async member => {
       bot: member.user.bot,
     });
   }
-});
-retryEvent("guildMemberUpdate", async member => {
-  await db
-    .update(members)
-    .set({
-      guildId: member.guild.id,
-      bot: member.user.bot,
-    })
-    .where(eq(members.id, member.id));
 });
 retryEvent("guildMemberRemove", async member => {
   await db
@@ -67,12 +57,29 @@ retryEvent("channelCreate", async channel => {
   });
 });
 retryEvent("channelUpdate", async (_oldChannel, channel) => {
-  await db
-    .update(channels)
-    .set({
+  if (!("guildId" in channel)) {
+    return;
+  }
+
+  const where = eq(channels.id, channel.id);
+  const existingChannel = await db.query.channels.findFirst({
+    columns: { id: true },
+    where,
+  });
+  if (existingChannel) {
+    await db
+      .update(channels)
+      .set({
+        nsfw: "nsfw" in channel ? channel.nsfw : undefined,
+      })
+      .where(eq(channels.id, channel.id));
+  } else {
+    await db.insert(channels).values({
+      id: channel.id,
+      guildId: channel.guildId,
       nsfw: "nsfw" in channel ? channel.nsfw : undefined,
-    })
-    .where(eq(channels.id, channel.id));
+    });
+  }
 });
 retryEvent("channelDelete", async channel => {
   await db
@@ -81,9 +88,8 @@ retryEvent("channelDelete", async channel => {
     .where(eq(channels.id, channel.id));
 });
 retryEvent("messageCreate", async message => {
-  const messageId = message.id;
   await db.insert(messages).values({
-    id: messageId,
+    id: message.id,
     createdAt: message.createdAt,
     guildId: message.guildId,
     channelId: message.channelId,
@@ -94,7 +100,7 @@ retryEvent("messageCreate", async message => {
     await db.insert(attachments).values(
       message.attachments.map(attachment => ({
         id: attachment.id,
-        messageId,
+        messageId: message.id,
         filename: attachment.name,
         contentType: attachment.contentType,
         bot: message.author.bot,
@@ -103,17 +109,48 @@ retryEvent("messageCreate", async message => {
     );
   }
 });
-retryEvent("messageUpdate", async message => {
+retryEvent("messageUpdate", async (_oldMessage, message) => {
   if (message.partial) {
     message = await message.fetch();
   }
-  await db
-    .update(messages)
-    .set({
-      updatedAt: message.editedAt,
+
+  const where = eq(messages.id, message.id);
+  const existingMessage = await db.query.messages.findFirst({
+    columns: { id: true },
+    where,
+  });
+  if (existingMessage) {
+    await db
+      .update(messages)
+      .set({
+        updatedAt: message.editedAt,
+        content: message.content,
+      })
+      .where(eq(messages.id, message.id));
+    await db.delete(attachments).where(eq(attachments.messageId, message.id));
+  } else {
+    await db.insert(messages).values({
+      id: message.id,
+      createdAt: message.createdAt,
+      guildId: message.guildId,
+      channelId: message.channelId,
+      authorId: message.author.id,
       content: message.content,
-    })
-    .where(eq(messages.id, message.id));
+    });
+  }
+
+  if (message.attachments.size) {
+    await db.insert(attachments).values(
+      message.attachments.map(attachment => ({
+        id: attachment.id,
+        messageId: message.id,
+        filename: attachment.name,
+        contentType: attachment.contentType,
+        bot: message.author.bot,
+        nsfw: "nsfw" in message.channel ? message.channel.nsfw : undefined,
+      })),
+    );
+  }
 });
 retryEvent("messageDelete", async message => {
   await db
