@@ -16,12 +16,23 @@ const client = new Client({
 });
 
 retryEvent("guildCreate", async guild => {
-  await db.insert(guilds).values({
-    id: guild.id,
-  });
+  await db.insert(guilds).values({ id: guild.id });
 });
 retryEvent("guildDelete", async guild => {
-  await db.update(guilds).set({ deleted: true }).where(eq(guilds.id, guild.id));
+  await db.transaction(async tx => {
+    await tx
+      .update(guilds)
+      .set({ deleted: true })
+      .where(eq(guilds.id, guild.id));
+    await tx
+      .update(channels)
+      .set({ deleted: true })
+      .where(eq(channels.guildId, guild.id));
+    await tx
+      .update(messages)
+      .set({ deleted: true })
+      .where(eq(messages.guildId, guild.id));
+  });
 });
 retryEvent("guildMemberAdd", async member => {
   const existingMember = await db.query.members.findFirst({
@@ -31,9 +42,7 @@ retryEvent("guildMemberAdd", async member => {
   if (existingMember) {
     await db
       .update(members)
-      .set({
-        removed: false,
-      })
+      .set({ removed: false })
       .where(eq(members.id, member.id));
   } else {
     await db.insert(members).values({
@@ -82,54 +91,20 @@ retryEvent("channelUpdate", async (_oldChannel, channel) => {
   }
 });
 retryEvent("channelDelete", async channel => {
-  await db
-    .update(channels)
-    .set({ deleted: true })
-    .where(eq(channels.id, channel.id));
+  await db.transaction(async tx => {
+    await tx
+      .update(channels)
+      .set({ deleted: true })
+      .where(eq(channels.id, channel.id));
+    await tx
+      .update(messages)
+      .set({ deleted: true })
+      .where(eq(messages.channelId, channel.id));
+  });
 });
 retryEvent("messageCreate", async message => {
-  await db.insert(messages).values({
-    id: message.id,
-    createdAt: message.createdAt,
-    guildId: message.guildId,
-    channelId: message.channelId,
-    authorId: message.author.id,
-    content: message.content,
-  });
-  if (message.attachments.size) {
-    await db.insert(attachments).values(
-      message.attachments.map(attachment => ({
-        id: attachment.id,
-        messageId: message.id,
-        filename: attachment.name,
-        contentType: attachment.contentType,
-        bot: message.author.bot,
-        nsfw: "nsfw" in message.channel ? message.channel.nsfw : undefined,
-      })),
-    );
-  }
-});
-retryEvent("messageUpdate", async (_oldMessage, message) => {
-  if (message.partial) {
-    message = await message.fetch();
-  }
-
-  const where = eq(messages.id, message.id);
-  const existingMessage = await db.query.messages.findFirst({
-    columns: { id: true },
-    where,
-  });
-  if (existingMessage) {
-    await db
-      .update(messages)
-      .set({
-        updatedAt: message.editedAt,
-        content: message.content,
-      })
-      .where(eq(messages.id, message.id));
-    await db.delete(attachments).where(eq(attachments.messageId, message.id));
-  } else {
-    await db.insert(messages).values({
+  await db.transaction(async tx => {
+    await tx.insert(messages).values({
       id: message.id,
       createdAt: message.createdAt,
       guildId: message.guildId,
@@ -137,20 +112,64 @@ retryEvent("messageUpdate", async (_oldMessage, message) => {
       authorId: message.author.id,
       content: message.content,
     });
+    if (message.attachments.size) {
+      await tx.insert(attachments).values(
+        message.attachments.map(attachment => ({
+          id: attachment.id,
+          messageId: message.id,
+          filename: attachment.name,
+          contentType: attachment.contentType,
+          bot: message.author.bot,
+          nsfw: "nsfw" in message.channel ? message.channel.nsfw : undefined,
+        })),
+      );
+    }
+  });
+});
+retryEvent("messageUpdate", async (_oldMessage, message) => {
+  if (message.partial) {
+    message = await message.fetch();
   }
 
-  if (message.attachments.size) {
-    await db.insert(attachments).values(
-      message.attachments.map(attachment => ({
-        id: attachment.id,
-        messageId: message.id,
-        filename: attachment.name,
-        contentType: attachment.contentType,
-        bot: message.author.bot,
-        nsfw: "nsfw" in message.channel ? message.channel.nsfw : undefined,
-      })),
-    );
-  }
+  await db.transaction(async tx => {
+    const where = eq(messages.id, message.id);
+    const existingMessage = await tx.query.messages.findFirst({
+      columns: { id: true },
+      where,
+    });
+    if (existingMessage) {
+      await tx
+        .update(messages)
+        .set({
+          updatedAt: message.editedAt,
+          content: message.content,
+        })
+        .where(eq(messages.id, message.id));
+      await tx.delete(attachments).where(eq(attachments.messageId, message.id));
+    } else {
+      await tx.insert(messages).values({
+        id: message.id,
+        createdAt: message.createdAt,
+        guildId: message.guildId,
+        channelId: message.channelId,
+        authorId: message.author.id,
+        content: message.content,
+      });
+    }
+
+    if (message.attachments.size) {
+      await tx.insert(attachments).values(
+        message.attachments.map(attachment => ({
+          id: attachment.id,
+          messageId: message.id,
+          filename: attachment.name,
+          contentType: attachment.contentType,
+          bot: message.author.bot,
+          nsfw: "nsfw" in message.channel ? message.channel.nsfw : undefined,
+        })),
+      );
+    }
+  });
 });
 retryEvent("messageDelete", async message => {
   await db
